@@ -110,3 +110,9 @@ exports.protect = catchAsync(async (req, res, next) => {
   req.user = currentUser;
   next();
 });
+
+exports.getAllUser = catchAsync(async (req, res, next) => {
+  const users = await User.find();
+
+  res.status(200).json({ status: 'success', data: users });
+});

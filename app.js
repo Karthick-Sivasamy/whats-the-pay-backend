@@ -1,5 +1,7 @@
 const express = require('express');
 const morgan = require('morgan');
+const path = require('path');
+const cors = require('cors');
 const app = express();
 
 // Local file Imports
@@ -11,6 +13,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 app.use(express.json({ limit: '10kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(cors());
 
 app.use('/api/v1/user', userRouter);
 
