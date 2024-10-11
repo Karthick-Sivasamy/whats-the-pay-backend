@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 process.on('uncaughtException', (err) => {
   console.log('UNCAUGHT REJECTION💥Shutting down......');
+  if (process.env.NODE_ENV == 'development') {
+    console.log(err);
+  }
   console.log(err.name, err.message);
   process.exit(1);
 });

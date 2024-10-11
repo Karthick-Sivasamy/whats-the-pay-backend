@@ -4,6 +4,9 @@ const { promisify } = require('util');
 const User = require('../models/userModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const NewMail = require('../utils/mail');
+const EmailVerification = require('../models/emailVerificationModel');
+const { getRandomFourDigit, validateParamsIfNot } = require('../utils/globals');
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET_KEY, {
@@ -37,6 +40,32 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
+  validateParamsIfNot(
+    'name,email, password, passwordConfirm, verificationCode',
+    req,
+    next,
+  );
+
+  const verificationData = await EmailVerification.findOne({
+    email: req.body.email,
+  });
+
+  // console.log(verificationData, !verificationData);
+
+  if (!verificationData) {
+    return next(
+      new AppError(
+        'Email verification requried to sign up / verification code expired!',
+      ),
+    );
+  }
+
+  if (verificationData.verificationCode * 1 != req.body.verificationCode * 1) {
+    return next(new AppError('Incorrect verification code'));
+  }
+
+  await EmailVerification.deleteOne({ email: req.body.email });
+
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
@@ -115,4 +144,35 @@ exports.getAllUser = catchAsync(async (req, res, next) => {
   const users = await User.find();
 
   res.status(200).json({ status: 'success', data: users });
+});
+
+exports.sendVerficationEmail = catchAsync(async (req, res, next) => {
+  const { recipientMail, recipientName } = req.body;
+
+  if (await EmailVerification.findOne({ email: recipientMail })) {
+    return next(
+      new AppError(
+        'The verification email has been already sent to this mail id. Use if before it expires!',
+      ),
+    );
+  }
+
+  const verificationCode = getRandomFourDigit();
+
+  const sendEmail = new NewMail(
+    recipientName,
+    recipientMail,
+    verificationCode,
+  ).verificationEmail();
+
+  await sendEmail.send();
+
+  await EmailVerification.create({
+    email: recipientMail,
+    verificationCode,
+  });
+  res.status(200).json({
+    status: 'success',
+    message: 'Verification email sent successfully!',
+  });
 });
